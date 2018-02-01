@@ -1,0 +1,484 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>WFLZW 1.0.0 documentation</title>
+  <style type="text/css"> <!--
+html
+{
+  background-color: #DDDDDD;
+}
+
+body
+{
+  background-color: white;
+  margin-left: 5%;
+  margin-top: 16px;
+  margin-right: 5%;
+  padding-top: 2em;
+  padding-left: 7%;
+  padding-right: 7%;
+  padding-bottom: 2%;
+  border-color: black;
+  border: solid;
+  border-width: 1px;
+}
+
+h1
+{
+  text-align: center;
+  background-color: #FFEEA0;
+  padding-bottom: 0.2em;
+  padding-top: 0.1em;
+}
+
+h2
+{
+  background-color: #FFE0A0;
+  padding-left: 0.5em;
+}
+
+h3
+{
+  background-color: #FFFFA0;
+}
+
+h4
+{
+  background-color: #FFFFD0;
+}
+
+li
+{
+  padding-top: 0.3em;
+}
+
+pre
+{
+  background-color: #E0E0E0;
+  padding-left: 1em;
+  padding-top: 0.5em;
+  padding-bottom: 0.5em;
+  border-color: black;
+  border: solid;
+  border-width: 1px;
+  color: #004070;
+}
+
+code
+{
+  font-family: monospace;
+  color: #206000;
+}
+
+.comment
+{
+  color: #008000;
+}
+
+table, th, td
+{
+    border: 1px solid black;
+}
+
+td { text-align: center; }
+--> </style>
+</head>
+
+<body>
+<h1>WFLZW 1.0.0 documentation</h1>
+
+<h2>Introduction</h2>
+
+<p><code>WFLZW</code> is a C++ library for compressing and decompressing data. It is by its
+  design extremely light-weight, fast and memory-efficient (it can be configured to require as
+  little space as less than 1 kilobyte, all the way up to gigabytes). For this reason it may be
+  especially suitable for embedded systems with very restricted memory, but it's perfectly
+  usable in any platform.</p>
+
+<p>The library consists of one single header file, with a relatively small amount of C++11
+  standard-compliant code. No myriads of source files, no configuration scripts required.
+  Its usage is very simple: Just <code>#include</code> the header file in any source code
+  where you want to use the library, and that's it.</p>
+
+<p>Table of contents:</p>
+
+<ul>
+  <li><a href="#license">License</a></li>
+  <li><a href="#details">Encoder and Decoder class memory usage and speed details</a></li>
+  <li><a href="#benchmark">Some benchmark results</a></li>
+  <li><a href="#encoder">WFLZW::Encoder</a></li>
+  <ul>
+    <li><a href="#encoder interface">Public interface</a></li>
+    <li><a href="#using encoder">Using the class</a></li>
+    <li><a href="#compressing">Compressing data</a></li>
+    <li><a href="#max byte value">Maximum byte value</a></li>
+  </ul>
+  <li><a href="#decoder">WFLZW::Decoder</a></li>
+  <ul>
+    <li><a href="#decoder interface">Public interface</a></li>
+    <li><a href="#using decoder">Using the class</a></li>
+  </ul>
+  <li><a href="#important">Important notes</a></li>
+</ul>
+
+<!---------------------------------------------------------------------------->
+<h2 id="license">License</h2>
+
+<p>The source code of this software is published under the MIT license.</p>
+
+<p>Copyright (c) 2017 Juha Nieminen
+
+<p>Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:</p>
+
+<p>The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.</p>
+
+<p>THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</p>
+
+<!---------------------------------------------------------------------------->
+<h2 id="details">Encoder and Decoder class memory usage and speed details</h2>
+
+<p>The library consists of two primary template classes, <code>WFLZW::Encoder</code> and
+  <code>WFLZW::Decoder</code>. The size of the dictionary used by these classes is specified
+  as a template parameter (they work similarly to how <code>std::array</code> does.)</p>
+
+<p>The size of these classes depends on the desired dictionary size, which is freely
+  configurable. In general, the larger the dictionary, the better the compression ratio,
+  but the larger the size of the classes as well.</p>
+
+<p><code>WFLZW::Encoder</code> also offers two choices for the internal dictionary type it uses:
+  One that internally uses a linked list, and another that internally uses a binary tree.
+  The version that uses a linked list requires less space, but is a bit slower. Vice-versa
+  for the version that uses a binary tree. (This choice does not affect the compression ratio
+  of the data nor the size of the decoder. It only affects the size and speed of the encoder.)</p>
+
+<p>These are the sizes of the two classes for some typical dictionary sizes (note that even
+  though powers of 2 are being used here, the library is not limited to them; any size can
+  be specified):</p>
+
+<p><table>
+    <tr><th>Dictionary<br />size</th>
+      <th>Size of encoder<br />(using list)</th>
+      <th>Size of encoder<br />(using tree)</th>
+      <th>Size of decoder<br /></th></tr>
+    <tr><td>1024</td><td>5408 bytes</td><td>7456 bytes</td><td>4128 bytes</td></tr>
+    <tr><td>2048</td><td>10528 bytes</td><td>14624 bytes</td><td>8224 bytes</td></tr>
+    <tr><td>4096</td><td>20 kB</td><td>28 kB</td><td>16 kB</td></tr>
+    <tr><td>8192</td><td>40 kB</td><td>56 kB</td><td>32 kB</td></tr>
+    <tr><td>16384</td><td>80 kB</td><td>112 kB</td><td>64 kB</td></tr>
+    <tr><td>32768</td><td>160 kB</td><td>224 kB</td><td>128 kB</td></tr>
+    <tr><td>65536</td><td>320 kB</td><td>448 kB</td><td>256 kB</td></tr>
+    <tr><td>131072</td><td>1152 kB</td><td>1664 kB</td><td>768 kB</td></tr>
+    <tr><td>262144</td><td>2304 kB</td><td>3328 kB</td><td>1536 kB</td></tr>
+</table></p>
+
+<p>In normal use, the dictionary size that's most optimal in terms of memory usage, compression
+  ratio and speed is 65536.</p>
+
+<!---------------------------------------------------------------------------->
+<h2 id="benchmark">Some benchmark results</h2>
+
+<p>These benchmarks were run on a 4.2 GHz i5-2500K. The benchmark first loads the file fully
+  into a memory array, and then compresses the data to another array several times, and
+  calculates the average time. Only the compression step is timed. Likewise the compressed data
+  is decompressed into a third array several times, and the average time is taken.</p>
+
+<p>The file <a href="https://www.rfc-editor.org/rfc/rfc1812.txt">rfc1812.txt</a>, 415740
+  bytes in size:</p>
+
+<p><table>
+    <tr><th>Dictionary<br />size</th>
+      <th>Compressed<br />size</th>
+      <th>% of<br />original</th>
+      <th>Compression time<br />(using list)</th>
+      <th>Compression time<br />(using tree)</th>
+      <th>Decompression<br />time</th></tr>
+    <tr><td>1024</td><td>246265</td><td>59.2%</td><td>6.5 ms</td><td>6.3 ms</td><td>4.2 ms</td></tr>
+    <tr><td>2048</td><td>216841</td><td>52.2%</td><td>6.5 ms</td><td>6.0 ms</td><td>3.8 ms</td></tr>
+    <tr><td>4096</td><td>196722</td><td>47.3%</td><td>6.8 ms</td><td>5.8 ms</td><td>3.4 ms</td></tr>
+    <tr><td>8192</td><td>180965</td><td>43.5%</td><td>7.4 ms</td><td>5.9 ms</td><td>3.0 ms</td></tr>
+    <tr><td>16384</td><td>168806</td><td>40.6%</td><td>8.2 ms</td><td>5.6 ms</td><td>2.9 ms</td></tr>
+    <tr><td>32768</td><td>157587</td><td>37.9%</td><td>9.5 ms</td><td>5.7 ms</td><td>2.7 ms</td></tr>
+    <tr><td>65536</td><td>148570</td><td>35.7%</td><td>11.2 ms</td><td>5.7 ms</td><td>2.5 ms</td></tr>
+    <tr><td>131072</td><td>143882</td><td>34.6%</td><td>14.7 ms</td><td>6.2 ms</td><td>2.9 ms</td></tr>
+</table></p>
+
+<p>The HTML source for the Wikipedia page
+  <a href="https://en.wikipedia.org/wiki/List_of_compositions_by_Franz_Schubert">List of
+    compositions by Franz Schubert</a>, 1534986 bytes in size:</p>
+
+<p><table>
+    <tr><th>Dictionary<br />size</th>
+      <th>Compressed<br />size</th>
+      <th>% of<br />original</th>
+      <th>Compression time<br />(using list)</th>
+      <th>Compression time<br />(using tree)</th>
+      <th>Decompression<br />time</th></tr>
+    <tr><td>1024</td><td>1001770</td><td>65.3%</td><td>22.3 ms</td><td>22.9 ms</td><td>16.0 ms</td></tr>
+    <tr><td>2048</td><td>811355</td><td>52.9%</td><td>21.5 ms</td><td>20.9 ms</td><td>13.9 ms</td></tr>
+    <tr><td>4096</td><td>669701</td><td>43.6%</td><td>20.4 ms</td><td>18.6 ms</td><td>11.7 ms</td></tr>
+    <tr><td>8192</td><td>562215</td><td>36.6%</td><td>19.7 ms</td><td>17.0 ms</td><td>10.0 ms</td></tr>
+    <tr><td>16384</td><td>484510</td><td>31.6%</td><td>20.5 ms</td><td>16.2 ms</td><td>8.9 ms</td></tr>
+    <tr><td>32768</td><td>424983</td><td>27.7%</td><td>22.5 ms</td><td>15.7 ms</td><td>8.2 ms</td></tr>
+    <tr><td>65536</td><td>379758</td><td>24.7%</td><td>25.8 ms</td><td>16.0 ms</td><td>7.9 ms</td></tr>
+    <tr><td>131072</td><td>346562</td><td>22.6%</td><td>38.4 ms</td><td>19.3 ms</td><td>10.0 ms</td></tr>
+    <tr><td>262144</td><td>332936</td><td>21.7%</td><td>43.1 ms</td><td>20.0 ms</td><td>10.0 ms</td></tr>
+</table></p>
+
+<p>The Windows font file <code>msgothic.ttc</code>, 9214692 bytes in size:</p>
+
+<p><table>
+    <tr><th>Dictionary<br />size</th>
+      <th>Compressed<br />size</th>
+      <th>% of<br />original</th>
+      <th>Compression time<br />(using list)</th>
+      <th>Compression time<br />(using tree)</th>
+      <th>Decompression<br />time</th></tr>
+    <tr><td>1024</td><td>7895738</td><td>85.7%</td><td>172 ms</td><td>159 ms</td><td>110 ms</td></tr>
+    <tr><td>2048</td><td>7638651</td><td>82.9%</td><td>196 ms</td><td>164 ms</td><td>109 ms</td></tr>
+    <tr><td>4096</td><td>7423379</td><td>80.6%</td><td>224 ms</td><td>162 ms</td><td>102 ms</td></tr>
+    <tr><td>8192</td><td>7218171</td><td>78.3%</td><td>264 ms</td><td>169 ms</td><td>96 ms</td></tr>
+    <tr><td>16384</td><td>7011160</td><td>76.1%</td><td>346 ms</td><td>175 ms</td><td>92 ms</td></tr>
+    <tr><td>32768</td><td>6745252</td><td>73.2%</td><td>473 ms</td><td>180 ms</td><td>87 ms</td></tr>
+    <tr><td>65536</td><td>6481893</td><td>70.3%</td><td>674 ms</td><td>187 ms</td><td>84 ms</td></tr>
+    <tr><td>131072</td><td>6229503</td><td>67.6%</td><td>1340 ms</td><td>222 ms</td><td>90 ms</td></tr>
+    <tr><td>262144</td><td>6113343</td><td>66.3%</td><td>2044 ms</td><td>254 ms</td><td>92 ms</td></tr>
+</table></p>
+
+<!---------------------------------------------------------------------------->
+<h2 id="encoder">WFLZW::Encoder</h2>
+
+<h3 id="encoder interface">Public interface</h3>
+
+<pre>template
+&lt;unsigned kDictionaryMaxSize,
+ WFLZW::DictionaryType kDictionaryType = WFLZW::DictionaryType::tree,
+ unsigned kOutputBufferSize = 256&gt;
+class WFLZW::Encoder
+{
+ public:
+    <span class="comment">// Constructor / initialization</span>
+    Encoder(WFLZW::Byte maxInputByteValue = kMaxInputByteValueDefault);
+
+    void initialize(WFLZW::Byte maxInputByteValue = kMaxInputByteValueDefault);
+
+    WFLZW::Byte maxByteValue() const;
+
+    <span class="comment">// Encoding</span>
+    void encodeBytes(const WFLZW::Byte*, const std::size_t amount);
+    void encodeByte(WFLZW::Byte);
+    void finalizeEncoding();
+
+    <span class="comment">// Encoded data callback function</span>
+    virtual void outputEncodedBytes(const WFLZW::Byte*, unsigned amount);
+};
+
+namespace WFLZW
+{
+    using Encoder64k = Encoder&lt;65536, DictionaryType::tree, 256&gt;;
+    using Encoder32k = Encoder&lt;32768, DictionaryType::tree, 256&gt;;
+    using Encoder16k = Encoder&lt;16384, DictionaryType::tree, 256&gt;;
+}
+</pre>
+
+<h3 id="using encoder">Using the class</h3>
+
+<p>The size of the dictionary is specified as a template parameter (similarly to how
+  <code>std::array</code> works). The type of dictionary can optionally be specified as a second
+  template parameter (the default being the tree type), the two options being:</p>
+
+<pre>WFLZW::DictionaryType::tree
+WFLZW::DictionaryType::list</pre>
+
+<p>The class is used via inheritance. In other words, to use the class, create another
+  class inherited from it, and implement the <code>outputEncodedBytes()</code> function,
+  which will receive the encoded bytes. <code>WFLZW::Encoder</code> will call this function
+  several times during the process of encoding the input data.</p>
+
+<p>For example, if you wanted to output the compressed data to a file (using
+  <code>std::fwrite()</code>), this can be achieved like:</p>
+
+<pre>#include "WFLZW.hh"
+
+class MyEncoder: public WFLZW::Encoder&lt;65536&gt;
+{
+ public:
+    virtual void outputEncodedBytes(const WFLZW::Byte* bytes, unsigned amount)
+    {
+        std::fwrite(bytes, 1, amount, outputFile);
+    }
+};</pre>
+
+<p>You can also use one of the type aliases for convenience:</p>
+
+<pre>class MyEncoder: public WFLZW::Encoder64k
+...</pre>
+
+<p>If you wanted to put all the compressed data eg. into an <code>std::vector</code>:</p>
+
+<pre>    virtual void outputEncodedBytes(const WFLZW::Byte* bytes, unsigned amount)
+    {
+        compressedData.insert(compressedData.end(), bytes, bytes+amount);
+    }</pre>
+
+<p>If necessary, the derived class can also be templated, so that it can be instantiated
+  with different dictionary sizes:</p>
+
+<pre>template&lt;unsigned kDictionaryMaxSize&gt;
+class MyEncoder: public WFLZW::Encoder&lt;kDictionaryMaxSize&gt;
+...</pre>
+
+<h3 id="compressing">Compressing data</h3>
+
+<p>The class is designed so that compressing data is "streamable", meaning that not all the
+  compressed data needs to necessarily be available at once. If necessary, the data to be
+  compressed can be given to the encoder in parts (even one byte at a time if necessary).</p>
+
+<p>The compression process starts by instantiating the class, or calling the
+  <code>initialize()</code> function of an existing instance, if it has been used before (in
+  order to reset all of its internal data). Then the input data to compress is given to the
+  instance by calling the <code>encodeBytes()</code> or <code>encodeByte()</code> as many
+  times as necessary, and finally calling the <code>finalizeEncoding()</code> function.</p>
+
+<p>Thus, typically, compressing data would happen as:</p>
+
+<pre>MyEncoder encoder;
+encoder.encodeBytes(&amp;inputData[0], inputData.size());
+<span class="comment">// possibly more calls to encodeBytes() or encodeByte()</span>
+encoder.finalizeEncoding();</pre>
+
+<p><b>IMPORTANT!</b> Always remember to call <code>finalizeEncoding()</code> after all the
+  data has been given to the class! Forgetting to call this function will make the result
+  incomplete and thus broken.</p>
+
+<h3 id="max byte value">Maximum byte value</h3>
+
+<p>If the maximum byte value for the data to be compressed is less than 255, this maximum can
+  be given to the constructor or the <code>initialize()</code> function. This allows the class
+  to use the remaining values as dictionary entries.</p>
+
+<p>Note that if this is done, the same maximum has to be given to <code>WFLZW::Decoder</code>
+  for decompressing the data (or else the decompressed data will be completely corrupted.)</p>
+
+<p>In most cases, however, specifying a smaller maximum byte value yields no significant
+  improvement in the compression ratio, so this is usually unnecessary. However, the option
+  is still provided.</p>
+
+<p>Note that <code>encodeBytes()</code> and <code>encodeByte()</code> will check that no byte
+  exceeds this specified maximum, and will throw an assertion failure if this is the case.
+  If in doubt, it's best to just not specify any maximum value at all (in which case it will
+  default to 255.)</p>
+
+<p>Also note that if you specify a dictionary size of less than 258, this will limit the
+  maximum byte value to 2 less than this size. In general specifying such a low dictionary
+  size is not very useful because the compression ratio would be abysmal (but the option
+  is there because there is no technical reason for it to not be supported.)</p>
+
+
+<!---------------------------------------------------------------------------->
+<h2 id="decoder">WFLZW::Decoder</h2>
+
+<h3 id="decoder interface">Public interface</h3>
+
+<pre>template&lt;unsigned kDictionaryMaxSize&gt;
+class WFLZW::Decoder
+{
+ public:
+    Decoder(WFLZW::Byte maxInputByteValue = kMaxInputByteValueDefault);
+
+    void initialize(WFLZW::Byte maxInputByteValue = kMaxInputByteValueDefault);
+
+    WFLZW::Byte maxByteValue() const;
+
+    <span class="comment">/* Returns true if the end-of-stream code was encountered (signifying
+       that all the data had been decoded), else false. */</span>
+    bool decodeBytes(const WFLZW::Byte*, const std::size_t amount);
+    bool decodeByte(WFLZW::Byte);
+
+    <span class="comment">// Decoded data callback function</span>
+    virtual void outputDecodedBytes(WFLZW::Byte*, unsigned amount);
+};
+
+namespace WFLZW
+{
+    using Decoder64k = Decoder&lt;65536&gt;;
+    using Decoder32k = Decoder&lt;32768&gt;;
+    using Decoder16k = Decoder&lt;16384&gt;;
+}
+</pre>
+
+<h3 id="using decoder">Using the class</h3>
+
+<p>Using <code>WFLZW::Decoder</code> is pretty much identical to using <code>WFLZW::Encoder</code>:
+  Create a new class inherited from it, implement the <code>outputDecodedBytes()</code> function,
+  and call the <code>decodeBytes()</code> and <code>decodeByte()</code> functions as needed to
+  decompress the compressed data.</p>
+
+<pre>class MyDecoder: public WFLZW::Decoder&lt;65536&gt;
+{
+ public:
+    virtual void outputDecodedBytes(WFLZW::Byte* bytes, unsigned amount)
+    {
+        <span class="comment">// Write the bytes to the desired destination</span>
+    }
+};</pre>
+
+<pre>MyDecoder decoder;
+decoder.decodeBytes(&amp;compressedData[0], compressedData.size());
+<span class="comment">// possibly more calls to decodeBytes() or decodeByte()</span></pre>
+
+<p>Note that in this case there is no need for a "finalize" function call.</p>
+
+<p>The decoding functions also return a boolean value. If it's <code>true</code>, that means
+  that the end of stream code was encountered, meaning that the entire compressed data has
+  been decompressed. (The calling code can use this to know this, if it has no other means
+  of knowing when all the data has been decompressed.)</p>
+
+<!---------------------------------------------------------------------------->
+<h2 id="important">Important notes</h2>
+
+<p>Always remember to call the <code>finalizeEncoding()</code> function of
+  <code>WFLZE::Encoder</code> after all the data to be compressed has been given to it.
+  Not doing so will cause the output data to be invalid.</p>
+
+<p><code>WFLZW::Decoder</code> must use the same dictionary size that was used with
+  <code>WFLZW::Encoder</code> to compress the data. Using a different dictionary size
+  will yield completely corrupted results (and may even cause a crash.)</p>
+
+<p>Likewise if you specified a smaller maximum byte value other than the default when encoding,
+  the same maximum has to be specified when decoding, or else the result will be completely
+  corrupted (and may even cause a crash.) The maximum byte size is not stored in the compressed
+  data; it's up to the calling code to store it if necessary. (If in doubt, it's best to simply
+  not specify a maximum byte value.)</p>
+
+<p><code>WFLZW::Decoder</code> does no sanity checks on the input. If the compressed data needs
+  to have some kind of validity check, it's up to the calling code to do so. (This could be
+  achieved, for example, by prepending or appending a checksum, eg. MD5, to the compressed
+  data, using some format.) Giving <code>WFLZW::Decoder</code> data that has not been created by
+  <code>WFLZW:Encoder</code> will obviously result in completely corrupted output, and may
+  even result in a crash.</p>
+
+<h3>Be careful of stack usage</h3>
+
+<p>Note that if you are instantiating either class in a function, be mindful of the size of
+  the class. If the dictionary size, and thus the class size, is very large, this may cause
+  problems because in most systems with most compilers the size of the program stack is limited.
+  In other words, something like this is probably going to crash the program:</p>
+
+<pre>void foo()
+{
+    WFLZW::Encoder&lt;1000000&gt encoder;
+}</pre>
+
+<p>(This the exact same issue as eg. <code>std::array</code> has.)</p>
+
+<p>In most systems it's generally pretty safe to use a dictionary size of 65536 or less.
+  However, if in doubt, or if you really want to use a dictionary size much larger than that,
+  a much safer option is to allocate the class dynamically:</p>
+
+<pre>void foo()
+{
+    auto encoderPtr = std::make_unique&lt;WFLZW::Encoder&lt;1000000&gt&gt();
+}</pre>
+
+</body></html>

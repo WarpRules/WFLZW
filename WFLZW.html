@@ -303,7 +303,7 @@ WFLZW::DictionaryType::list</pre>
 class MyEncoder: public WFLZW::Encoder&lt;65536&gt;
 {
  public:
-    virtual void outputEncodedBytes(const WFLZW::Byte* bytes, unsigned amount)
+    virtual void outputEncodedBytes(const WFLZW::Byte* bytes, unsigned amount) override
     {
         std::fwrite(bytes, 1, amount, outputFile);
     }
@@ -316,7 +316,7 @@ class MyEncoder: public WFLZW::Encoder&lt;65536&gt;
 
 <p>If you wanted to put all the compressed data eg. into an <code>std::vector</code>:</p>
 
-<pre>    virtual void outputEncodedBytes(const WFLZW::Byte* bytes, unsigned amount)
+<pre>    virtual void outputEncodedBytes(const WFLZW::Byte* bytes, unsigned amount) override
     {
         compressedData.insert(compressedData.end(), bytes, bytes+amount);
     }</pre>
@@ -417,7 +417,7 @@ namespace WFLZW
 <pre>class MyDecoder: public WFLZW::Decoder&lt;65536&gt;
 {
  public:
-    virtual void outputDecodedBytes(WFLZW::Byte* bytes, unsigned amount)
+    virtual void outputDecodedBytes(WFLZW::Byte* bytes, unsigned amount) override
     {
         <span class="comment">// Write the bytes to the desired destination</span>
     }
@@ -433,6 +433,10 @@ decoder.decodeBytes(&amp;compressedData[0], compressedData.size());
   that the end of stream code was encountered, meaning that the entire compressed data has
   been decompressed. (The calling code can use this to know this, if it has no other means
   of knowing when all the data has been decompressed.)</p>
+
+<p>Note that the <code>bytes</code> pointer given as parameter to <code>outputDecodedBytes()</code>
+  is not const. This is not an accident. You are free to modify the bytes in that array
+  (but only up to <code>amount</code> of them) if necessary, within this function.</p>
 
 <!---------------------------------------------------------------------------->
 <h2 id="important">Important notes</h2>

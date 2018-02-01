@@ -18,7 +18,7 @@ The file [rfc1812.txt](https://www.rfc-editor.org/rfc/rfc1812.txt), 415740 bytes
  <tr><th>Dictionary<br />size</th>
      <th>Size of encoder<br />(using list)</th>
      <th>Size of encoder<br />(using tree)</th>
-     <th>Size of decoder<br /></th></tr>
+     <th>Size of decoder<br /></th>
      <th>Compressed<br />data size</th>
      <th>% of<br />original</th>
      <th>Compression time<br />(using list)</th>

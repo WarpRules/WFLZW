@@ -4,8 +4,8 @@
 #include <type_traits>
 #include <cassert>
 
-#define WFLZW_VERSION 0x010000
-#define WFLZW_VERSION_STRING "1.0.0"
+#define WFLZW_VERSION 0x010001
+#define WFLZW_VERSION_STRING "1.0.1"
 #define WFLZW_COPYRIGHT_STRING "WFLZW v" WFLZW_VERSION_STRING " (C)2018 Juha Nieminen"
 
 namespace WFLZW
@@ -172,7 +172,7 @@ class WFLZW::Decoder
 
     void reset();
     bool decodeIndex(Index_t);
-    const WFLZW::Byte* extractAndOutputStringAt(Index_t);
+    WFLZW::Byte extractAndOutputStringAt(Index_t);
     void addToDictionary(Index_t, WFLZW::Byte);
 };
 
@@ -572,7 +572,7 @@ bool WFLZW::Decoder<kDictionaryMaxSize>::decodeByte
 }
 
 template<unsigned kDictionaryMaxSize>
-const WFLZW::Byte* WFLZW::Decoder<kDictionaryMaxSize>::extractAndOutputStringAt(Index_t index)
+WFLZW::Byte WFLZW::Decoder<kDictionaryMaxSize>::extractAndOutputStringAt(Index_t index)
 {
     WFLZW::Byte* endOfBuffer = mDecodeBuffer + kDictionaryMaxSize;
     WFLZW::Byte* decodedString = endOfBuffer;
@@ -583,8 +583,9 @@ const WFLZW::Byte* WFLZW::Decoder<kDictionaryMaxSize>::extractAndOutputStringAt(
         index = mPrefixIndices[index];
     }
 
+    const WFLZW::Byte firstByte = *decodedString;
     outputDecodedBytes(decodedString, endOfBuffer - decodedString);
-    return decodedString;
+    return firstByte;
 }
 
 template<unsigned kDictionaryMaxSize>
@@ -604,8 +605,7 @@ bool WFLZW::Decoder<kDictionaryMaxSize>::decodeIndex(Index_t index)
 
     if(index < mEntriesAmount)
     {
-        const WFLZW::Byte* decodedString = extractAndOutputStringAt(index);
-        mOldFirstByte = *decodedString;
+        mOldFirstByte = extractAndOutputStringAt(index);
         if(mOldIndex != kEmptyIndex)
             addToDictionary(mOldIndex, mOldFirstByte);
         mOldIndex = index;
@@ -614,8 +614,7 @@ bool WFLZW::Decoder<kDictionaryMaxSize>::decodeIndex(Index_t index)
     {
         const Index_t newIndex = static_cast<Index_t>(mEntriesAmount);
         addToDictionary(mOldIndex, mOldFirstByte);
-        const WFLZW::Byte* decodedString = extractAndOutputStringAt(newIndex);
-        mOldFirstByte = *decodedString;
+        mOldFirstByte = extractAndOutputStringAt(newIndex);
         mOldIndex = newIndex;
     }
 

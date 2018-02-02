@@ -164,12 +164,14 @@ static void runBenchmark(const char* inputFileName, unsigned iterations, bool us
                     remapper.decodeMapSize);
     std::printf
         ("Compressed size: %zu bytes (%.1f%%)\n"
-         "Compression time (average of %u iterations): %.2f ms\n"
-         "Decompression time (average of %u iterations): %.2f ms\n",
+         "Compression time (average of %u iterations): %.2f ms (%.2f MB/s)\n"
+         "Decompression time (average of %u iterations): %.2f ms (%.2f MB/s)\n",
          gEncodedData.size(),
          double(gEncodedData.size())*100.0/double(gInputData.size()),
          iterations, encodeTime*1000.0 / iterations,
-         iterations, decodeTime*1000.0 / iterations);
+         gInputData.size() * double(iterations) / (1048576.0 * encodeTime),
+         iterations, decodeTime*1000.0 / iterations,
+         gEncodedData.size() * double(iterations) / (1048576.0 * decodeTime));
 }
 
 int main(int argc, char* argv[])

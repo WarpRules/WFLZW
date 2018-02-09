@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-  <title>WFLZW 1.0.1 documentation</title>
+  <title>WFLZW 1.0.2 documentation</title>
   <style type="text/css"> <!--
 html
 {
@@ -86,7 +86,7 @@ td { text-align: center; }
 </head>
 
 <body>
-<h1>WFLZW 1.0.1 documentation</h1>
+<h1>WFLZW 1.0.2 documentation</h1>
 
 <h2>Introduction</h2>
 
@@ -265,8 +265,8 @@ class WFLZW::Encoder
     WFLZW::Byte maxByteValue() const;
 
     <span class="comment">// Encoding</span>
-    void encodeBytes(const WFLZW::Byte*, const std::size_t amount);
-    void encodeByte(WFLZW::Byte);
+    WFLZW::EncodeStatus encodeBytes(const WFLZW::Byte*, const std::size_t amount);
+    WFLZW::EncodeStatus encodeByte(WFLZW::Byte);
     void finalizeEncoding();
 
     <span class="comment">// Encoded data callback function</span>
@@ -275,6 +275,9 @@ class WFLZW::Encoder
 
 namespace WFLZW
 {
+    enum class DictionaryType { list, tree };
+    enum class EncodeStatus { ok, inputByteTooLarge };
+
     using Encoder64k = Encoder&lt;65536, DictionaryType::tree, 256&gt;;
     using Encoder32k = Encoder&lt;32768, DictionaryType::tree, 256&gt;;
     using Encoder16k = Encoder&lt;16384, DictionaryType::tree, 256&gt;;
@@ -365,9 +368,11 @@ encoder.finalizeEncoding();</pre>
   is still provided.</p>
 
 <p>Note that <code>encodeBytes()</code> and <code>encodeByte()</code> will check that no byte
-  exceeds this specified maximum, and will throw an assertion failure if this is the case.
+  exceeds this specified maximum, and will return
+  <code>WFLZW::EncodeStatus::inputByteTooLarge</code> if this is the case.
   If in doubt, it's best to just not specify any maximum value at all (in which case it will
-  default to 255.)</p>
+  default to 255, and the error code will never be returned, and thus it doesn't even need
+  to be checked.)</p>
 
 <p>Also note that if you specify a dictionary size of less than 258, this will limit the
   maximum byte value to 2 less than this size. In general specifying such a low dictionary
@@ -384,16 +389,16 @@ encoder.finalizeEncoding();</pre>
 class WFLZW::Decoder
 {
  public:
+    <span class="comment">// Constructor / initialization</span>
     Decoder(WFLZW::Byte maxInputByteValue = kMaxInputByteValueDefault);
 
     void initialize(WFLZW::Byte maxInputByteValue = kMaxInputByteValueDefault);
 
     WFLZW::Byte maxByteValue() const;
 
-    <span class="comment">/* Returns true if the end-of-stream code was encountered (signifying
-       that all the data had been decoded), else false. */</span>
-    bool decodeBytes(const WFLZW::Byte*, const std::size_t amount);
-    bool decodeByte(WFLZW::Byte);
+    <span class="comment">// Decoding</span>
+    WFLZW::DecodeStatus decodeBytes(const WFLZW::Byte*, const std::size_t amount);
+    WFLZW::DecodeStatus decodeByte(WFLZW::Byte);
 
     <span class="comment">// Decoded data callback function</span>
     virtual void outputDecodedBytes(WFLZW::Byte*, unsigned amount);
@@ -401,6 +406,8 @@ class WFLZW::Decoder
 
 namespace WFLZW
 {
+    enum class DecodeStatus { inputContinues, inputDone, inputError };
+
     using Decoder64k = Decoder&lt;65536&gt;;
     using Decoder32k = Decoder&lt;32768&gt;;
     using Decoder16k = Decoder&lt;16384&gt;;
@@ -429,10 +436,19 @@ decoder.decodeBytes(&amp;compressedData[0], compressedData.size());
 
 <p>Note that in this case there is no need for a "finalize" function call.</p>
 
-<p>The decoding functions also return a boolean value. If it's <code>true</code>, that means
-  that the end of stream code was encountered, meaning that the entire compressed data has
-  been decompressed. (The calling code can use this to know this, if it has no other means
-  of knowing when all the data has been decompressed.)</p>
+<p>The decoding functions also return a code indicating the current status of the decoding
+  process. Its possible values are:</p>
+
+<p><code>WFLZW::DecodeStatus::inputContinues</code> : So far everything is ok, and the end
+  of the input has not yet been reached (ie. there's still more input expected.)</p>
+
+<p><code>WFLZW::DecodeStatus::inputDone</code> : Everything was ok, and the end-of-input code
+  was encountered, meaning that all the compressed data has been decompressed. No more input
+  is expected.</p>
+
+<p><code>WFLZW::DecodeStatus::inputError</code> : The input had an invalid value. This is a
+  fatal error and means the input data is corrupted somehow (or not created by the encoder
+  at all.)</p>
 
 <p>Note that the <code>bytes</code> pointer given as parameter to <code>outputDecodedBytes()</code>
   is not const. This is not an accident. You are free to modify the bytes in that array
@@ -447,20 +463,19 @@ decoder.decodeBytes(&amp;compressedData[0], compressedData.size());
 
 <p><code>WFLZW::Decoder</code> must use the same dictionary size that was used with
   <code>WFLZW::Encoder</code> to compress the data. Using a different dictionary size
-  will yield completely corrupted results (and may even cause a crash.)</p>
+  will yield completely corrupted results.</p>
 
 <p>Likewise if you specified a smaller maximum byte value other than the default when encoding,
   the same maximum has to be specified when decoding, or else the result will be completely
-  corrupted (and may even cause a crash.) The maximum byte size is not stored in the compressed
-  data; it's up to the calling code to store it if necessary. (If in doubt, it's best to simply
-  not specify a maximum byte value.)</p>
+  corrupted. The maximum byte size is not stored in the compressed data; it's up to the calling
+  code to store it if necessary. (If in doubt, it's best to simply not specify a maximum byte
+  value.)</p>
 
 <p><code>WFLZW::Decoder</code> does no sanity checks on the input. If the compressed data needs
   to have some kind of validity check, it's up to the calling code to do so. (This could be
   achieved, for example, by prepending or appending a checksum, eg. MD5, to the compressed
   data, using some format.) Giving <code>WFLZW::Decoder</code> data that has not been created by
-  <code>WFLZW:Encoder</code> will obviously result in completely corrupted output, and may
-  even result in a crash.</p>
+  <code>WFLZW:Encoder</code> will obviously result in completely corrupted output.</p>
 
 <h3>Be careful of stack usage</h3>
 

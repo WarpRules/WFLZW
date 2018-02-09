@@ -4,8 +4,8 @@
 #include <type_traits>
 #include <cassert>
 
-#define WFLZW_VERSION 0x010001
-#define WFLZW_VERSION_STRING "1.0.1"
+#define WFLZW_VERSION 0x010002
+#define WFLZW_VERSION_STRING "1.0.2"
 #define WFLZW_COPYRIGHT_STRING "WFLZW v" WFLZW_VERSION_STRING " (C)2018 Juha Nieminen"
 
 namespace WFLZW
@@ -19,6 +19,9 @@ namespace WFLZW
 
     template<unsigned kDictionaryMaxSize>
     class Decoder;
+
+    enum class EncodeStatus { ok, inputByteTooLarge };
+    enum class DecodeStatus { inputContinues, inputDone, inputError };
 
     struct ByteRemapper;
 
@@ -51,10 +54,11 @@ class WFLZW::Encoder
 
     WFLZW::Byte maxByteValue() const { return mMaxInputByteValue; }
 
-    void encodeBytes(const WFLZW::Byte*, const std::size_t amount);
-    void encodeBytes(const WFLZW::Byte*, const std::size_t amount, const WFLZW::ByteRemapper&);
-    void encodeByte(WFLZW::Byte);
-    void encodeByte(WFLZW::Byte, const WFLZW::ByteRemapper&);
+    WFLZW::EncodeStatus encodeBytes(const WFLZW::Byte*, const std::size_t amount);
+    WFLZW::EncodeStatus encodeBytes(const WFLZW::Byte*, const std::size_t amount,
+                                    const WFLZW::ByteRemapper&);
+    WFLZW::EncodeStatus encodeByte(WFLZW::Byte);
+    WFLZW::EncodeStatus encodeByte(WFLZW::Byte, const WFLZW::ByteRemapper&);
     void finalizeEncoding();
 
     virtual void outputEncodedBytes(const WFLZW::Byte*, unsigned) {}
@@ -148,10 +152,8 @@ class WFLZW::Decoder
 
     WFLZW::Byte maxByteValue() const { return mMaxInputByteValue; }
 
-    /* Returns true if the end-of-stream code was encountered (signifying
-       that all the data had been decoded), else false. */
-    bool decodeBytes(const WFLZW::Byte*, const std::size_t amount);
-    bool decodeByte(WFLZW::Byte);
+    WFLZW::DecodeStatus decodeBytes(const WFLZW::Byte*, const std::size_t amount);
+    WFLZW::DecodeStatus decodeByte(WFLZW::Byte);
 
     virtual void outputDecodedBytes(WFLZW::Byte*, unsigned) {}
 
@@ -171,7 +173,7 @@ class WFLZW::Decoder
     WFLZW::Byte mMaxInputByteValue, mOldFirstByte;
 
     void reset();
-    bool decodeIndex(Index_t);
+    WFLZW::DecodeStatus decodeIndex(Index_t);
     WFLZW::Byte extractAndOutputStringAt(Index_t);
     void addToDictionary(Index_t, WFLZW::Byte);
 };
@@ -351,10 +353,10 @@ void WFLZW::Encoder<kDictionaryMaxSize, kDictType, kOutputBufferSize>::reset()
 }
 
 template<unsigned kDictionaryMaxSize, WFLZW::DictionaryType kDictType, unsigned kOutputBufferSize>
-void WFLZW::Encoder<kDictionaryMaxSize, kDictType, kOutputBufferSize>::encodeByte
+WFLZW::EncodeStatus WFLZW::Encoder<kDictionaryMaxSize, kDictType, kOutputBufferSize>::encodeByte
 (WFLZW::Byte byte)
 {
-    assert(byte <= mMaxInputByteValue);
+    if(byte > mMaxInputByteValue) return WFLZW::EncodeStatus::inputByteTooLarge;
 
     const Index_t existingIndex = mDictionary.addIfNotExistent(mIndex, byte);
     mDictionaryHasBeenReset = false;
@@ -379,29 +381,35 @@ void WFLZW::Encoder<kDictionaryMaxSize, kDictType, kOutputBufferSize>::encodeByt
             mMaxOutputValueForCurrentBitSize = (1U << mBitSize);
         }
     }
+
+    return WFLZW::EncodeStatus::ok;
 }
 
 template<unsigned kDictionaryMaxSize, WFLZW::DictionaryType kDictType, unsigned kOutputBufferSize>
-void WFLZW::Encoder<kDictionaryMaxSize, kDictType, kOutputBufferSize>::encodeByte
+WFLZW::EncodeStatus WFLZW::Encoder<kDictionaryMaxSize, kDictType, kOutputBufferSize>::encodeByte
 (WFLZW::Byte byte, const WFLZW::ByteRemapper& remapper)
 {
-    encodeByte(remapper.encodeMap[byte]);
+    return encodeByte(remapper.encodeMap[byte]);
 }
 
 template<unsigned kDictionaryMaxSize, WFLZW::DictionaryType kDictType, unsigned kOutputBufferSize>
-void WFLZW::Encoder<kDictionaryMaxSize, kDictType, kOutputBufferSize>::encodeBytes
+WFLZW::EncodeStatus WFLZW::Encoder<kDictionaryMaxSize, kDictType, kOutputBufferSize>::encodeBytes
 (const WFLZW::Byte* bytes, const std::size_t amount)
 {
     for(std::size_t i = 0; i < amount; ++i)
-        encodeByte(bytes[i]);
+        if(encodeByte(bytes[i]) == WFLZW::EncodeStatus::inputByteTooLarge)
+            return WFLZW::EncodeStatus::inputByteTooLarge;
+    return WFLZW::EncodeStatus::ok;
 }
 
 template<unsigned kDictionaryMaxSize, WFLZW::DictionaryType kDictType, unsigned kOutputBufferSize>
-void WFLZW::Encoder<kDictionaryMaxSize, kDictType, kOutputBufferSize>::encodeBytes
+WFLZW::EncodeStatus WFLZW::Encoder<kDictionaryMaxSize, kDictType, kOutputBufferSize>::encodeBytes
 (const WFLZW::Byte* bytes, const std::size_t amount, const WFLZW::ByteRemapper& remapper)
 {
     for(std::size_t i = 0; i < amount; ++i)
-        encodeByte(remapper.encodeMap[bytes[i]]);
+        if(encodeByte(remapper.encodeMap[bytes[i]]) == WFLZW::EncodeStatus::inputByteTooLarge)
+            return WFLZW::EncodeStatus::inputByteTooLarge;
+    return WFLZW::EncodeStatus::ok;
 }
 
 template<unsigned kDictionaryMaxSize, WFLZW::DictionaryType kDictType, unsigned kOutputBufferSize>
@@ -522,18 +530,18 @@ void WFLZW::Decoder<kDictionaryMaxSize>::reset()
 }
 
 template<unsigned kDictionaryMaxSize>
-bool WFLZW::Decoder<kDictionaryMaxSize>::decodeBytes
+WFLZW::DecodeStatus WFLZW::Decoder<kDictionaryMaxSize>::decodeBytes
 (const WFLZW::Byte* bytes, const std::size_t amount)
 {
-    for(std::size_t i = 0; i < amount; ++i)
-        if(decodeByte(bytes[i]))
-            return true;
+    WFLZW::DecodeStatus status = WFLZW::DecodeStatus::inputContinues;
+    for(std::size_t i = 0; i < amount && status == WFLZW::DecodeStatus::inputContinues; ++i)
+        status = decodeByte(bytes[i]);
 
-    return false;
+    return status;
 }
 
 template<unsigned kDictionaryMaxSize>
-bool WFLZW::Decoder<kDictionaryMaxSize>::decodeByte
+WFLZW::DecodeStatus WFLZW::Decoder<kDictionaryMaxSize>::decodeByte
 (WFLZW::Byte byte)
 {
     const Index_t value = static_cast<Index_t>(byte);
@@ -565,10 +573,11 @@ bool WFLZW::Decoder<kDictionaryMaxSize>::decodeByte
                 mInputBuffer |= (extraBits >> (extraBitsAmount - mBitOffset));
         }
 
-        if(decodeIndex(index)) return true;
+        const WFLZW::DecodeStatus status = decodeIndex(index);
+        if(status != WFLZW::DecodeStatus::inputContinues) return status;
     }
 
-    return false;
+    return WFLZW::DecodeStatus::inputContinues;
 }
 
 template<unsigned kDictionaryMaxSize>
@@ -597,11 +606,13 @@ void WFLZW::Decoder<kDictionaryMaxSize>::addToDictionary(Index_t prefixIndex, WF
 }
 
 template<unsigned kDictionaryMaxSize>
-bool WFLZW::Decoder<kDictionaryMaxSize>::decodeIndex(Index_t index)
+WFLZW::DecodeStatus WFLZW::Decoder<kDictionaryMaxSize>::decodeIndex(Index_t index)
 {
-    assert(index < kDictionaryMaxSize);
+    if(index >= kDictionaryMaxSize)
+        return WFLZW::DecodeStatus::inputError;
 
-    if(index == static_cast<Index_t>(mMaxInputByteValue) + 1) return true;
+    if(index == static_cast<Index_t>(mMaxInputByteValue) + 1)
+        return WFLZW::DecodeStatus::inputDone;
 
     if(index < mEntriesAmount)
     {
@@ -629,7 +640,7 @@ bool WFLZW::Decoder<kDictionaryMaxSize>::decodeIndex(Index_t index)
         mMaxInputValueForCurrentBitSize = (1U << mBitSize) - 1;
     }
 
-    return false;
+    return WFLZW::DecodeStatus::inputContinues;
 }
 
 #endif

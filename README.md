@@ -1,5 +1,5 @@
 # WFLZW
-WFLZW 1.0.1 is a C++ library for compressing and decompressing data. It is by its
+WFLZW 1.0.2 is a C++ library for compressing and decompressing data. It is by its
 design extremely light-weight, fast and memory-efficient (it can be configured to require as
 little space as less than 1 kilobyte, all the way up to gigabytes). For this reason it may be
 especially suitable for embedded systems with very restricted memory, but it's perfectly

@@ -4,8 +4,8 @@
 #include <type_traits>
 #include <cassert>
 
-#define WFLZW_VERSION 0x010002
-#define WFLZW_VERSION_STRING "1.0.2"
+#define WFLZW_VERSION 0x010003
+#define WFLZW_VERSION_STRING "1.0.3"
 #define WFLZW_COPYRIGHT_STRING "WFLZW v" WFLZW_VERSION_STRING " (C)2018 Juha Nieminen"
 
 namespace WFLZW
@@ -45,7 +45,7 @@ class WFLZW::Encoder
                   "WFLZW::Encoder kDictionaryMaxSize template parameter is too small");
 
     static const WFLZW::Byte kMaxInputByteValueDefault =
-        (kDictionaryMaxSize <= 256U ? WFLZW::Byte(kDictionaryMaxSize - 2) : WFLZW::Byte(255U));
+        (kDictionaryMaxSize <= 257U ? WFLZW::Byte(kDictionaryMaxSize - 3) : WFLZW::Byte(255U));
 
  public:
     Encoder(WFLZW::Byte maxInputByteValue = kMaxInputByteValueDefault);
@@ -143,7 +143,7 @@ class WFLZW::Decoder
                   "WFLZW::Decoder kDictionaryMaxSize template parameter is too small");
 
     static const WFLZW::Byte kMaxInputByteValueDefault =
-        (kDictionaryMaxSize <= 256U ? WFLZW::Byte(kDictionaryMaxSize - 2) : WFLZW::Byte(255U));
+        (kDictionaryMaxSize <= 257U ? WFLZW::Byte(kDictionaryMaxSize - 3) : WFLZW::Byte(255U));
 
  public:
     Decoder(WFLZW::Byte maxInputByteValue = kMaxInputByteValueDefault);
@@ -332,7 +332,7 @@ template<unsigned kDictionaryMaxSize, WFLZW::DictionaryType kDictType, unsigned 
 void WFLZW::Encoder<kDictionaryMaxSize, kDictType, kOutputBufferSize>::initialize
 (WFLZW::Byte maxInputByteValue)
 {
-    assert(static_cast<unsigned>(maxInputByteValue) + 1 < kDictionaryMaxSize);
+    assert(static_cast<unsigned>(maxInputByteValue) + 2 < kDictionaryMaxSize);
     mMaxInputByteValue = maxInputByteValue;
     mOutputBufferIndex = 0;
     mOutputBufferBitOffset = 0;
@@ -504,7 +504,7 @@ template<unsigned kDictionaryMaxSize>
 void WFLZW::Decoder<kDictionaryMaxSize>::initialize
 (WFLZW::Byte maxInputByteValue)
 {
-    assert(static_cast<unsigned>(maxInputByteValue) + 1 < kDictionaryMaxSize);
+    assert(static_cast<unsigned>(maxInputByteValue) + 2 < kDictionaryMaxSize);
     mMaxInputByteValue = maxInputByteValue;
     mBitOffset = 0;
     const unsigned maxIndex = static_cast<unsigned>(maxInputByteValue) + 1;

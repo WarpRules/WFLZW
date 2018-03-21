@@ -144,7 +144,7 @@ bool testCombinations()
     const unsigned kMaxSize = 8;
 #endif
 
-    const unsigned maximumPossibleByteValue = std::min(kDictionaryMaxSize - 2, 255U);
+    const unsigned maximumPossibleByteValue = std::min(kDictionaryMaxSize - 3, 255U);
     TestEncoder<kDictionaryMaxSize> encoder;
     TestDecoder<kDictionaryMaxSize> decoder;
     WFLZW::Byte values[kMaxSize+1];
@@ -214,7 +214,7 @@ bool testRandomData()
     std::cout << "Testing random data\n";
 #endif
 
-    const unsigned maximumPossibleByteValue = std::min(kDictionaryMaxSize - 2, 255U);
+    const unsigned maximumPossibleByteValue = std::min(kDictionaryMaxSize - 3, 255U);
 
     gInputData.reserve(kDataSizes[kDataSizesAmount - 1]);
     gDecodedData.reserve(kDataSizes[kDataSizesAmount - 1]);
@@ -271,7 +271,7 @@ bool testWordCombinations()
     std::cout << "Testing word combinations\n";
 #endif
 
-    const unsigned maximumPossibleByteValue = std::min(kDictionaryMaxSize - 2, 255U);
+    const unsigned maximumPossibleByteValue = std::min(kDictionaryMaxSize - 3, 255U);
     const WFLZW::Byte maxByteValue = maximumPossibleByteValue;
 
     TestEncoderContainer<kDictionaryMaxSize> encoderContainer;
@@ -338,7 +338,7 @@ bool testPatterns()
     std::cout << "Testing patterns\n";
 #endif
 
-    const unsigned maximumPossibleByteValue = std::min(kDictionaryMaxSize - 2, 255U);
+    const unsigned maximumPossibleByteValue = std::min(kDictionaryMaxSize - 3, 255U);
     TestEncoderContainer<kDictionaryMaxSize> encoderContainer;
     TestDecoderContainer<kDictionaryMaxSize> decoderContainer;
     TestEncoder<kDictionaryMaxSize>& encoder = encoderContainer.instance();
